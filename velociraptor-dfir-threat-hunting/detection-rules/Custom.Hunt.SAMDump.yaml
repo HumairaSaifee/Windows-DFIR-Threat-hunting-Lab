@@ -1,0 +1,35 @@
+name: Custom.Hunt.SAMDump
+description: |
+  Parameterized hunt for local credential hive dumping (T1003.002).
+  This is the artifact as it ran in the lab. The query is transcribed from the
+  editor screenshot; the parameter defaults are read from the artifact definition
+  screenshot, where the asterisks were displayed as italics. See
+  detections/velociraptor/evidence/D01 and D02.
+type: CLIENT
+parameters:
+  - name: PathGlob
+    default: C:/Windows/System32/winevt/Logs/*Sysmon*.evtx
+    description: Glob path pattern for Sysmon logs.
+  - name: TargetRegex
+    default: (?i)reg.*(save|export).*(sam|system|security)
+    description: Regex pattern matching registry hive export commands.
+sources:
+  - query: |
+      SELECT
+          System.TimeCreated.SystemTime AS Timestamp,
+          if(condition=System.EventID.Value, then=System.EventID.Value, else=System.EventID) AS EventID,
+          EventData.CommandLine AS CommandLine,
+          EventData.Image AS ImagePath,
+          EventData.User AS User
+      FROM foreach(
+        row={
+          SELECT OSPath FROM glob(globs=PathGlob)
+        },
+        query={
+          SELECT * FROM parse_evtx(filename=OSPath)
+        }
+      )
+      WHERE EventID = 1
+        AND CommandLine =~ TargetRegex
+      ORDER BY Timestamp DESC
+      LIMIT 50

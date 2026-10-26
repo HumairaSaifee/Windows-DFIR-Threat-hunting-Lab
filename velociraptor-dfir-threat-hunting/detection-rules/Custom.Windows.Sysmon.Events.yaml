@@ -1,0 +1,29 @@
+# NOTE: Reconstructed from the SAMDump pattern and the artifact definition screenshot.
+# Replace with your exported YAML (artifact editor > pencil icon > copy) before publishing.
+name: Custom.Windows.Sysmon.Events
+description: |
+  Fetch Sysmon events with configurable log paths and Event IDs.
+type: CLIENT
+parameters:
+  - name: PathGlob
+    default: C:/Windows/System32/winevt/Logs/*Sysmon*.evtx
+    description: Glob path pattern for Sysmon logs.
+  - name: TargetEventID
+    type: int
+    default: "1"
+    description: Sysmon Event ID to return (1 = process create, 3 = network connect).
+sources:
+  - query: |
+      SELECT
+          System.TimeCreated.SystemTime AS Timestamp,
+          System.EventID.Value AS EventID,
+          EventData.CommandLine AS CommandLine,
+          EventData.Image AS ImagePath,
+          EventData.User AS User
+      FROM foreach(
+        row={ SELECT OSPath FROM glob(globs=PathGlob) },
+        query={ SELECT * FROM parse_evtx(filename=OSPath) }
+      )
+      WHERE EventID = TargetEventID
+      ORDER BY Timestamp DESC
+      LIMIT 50

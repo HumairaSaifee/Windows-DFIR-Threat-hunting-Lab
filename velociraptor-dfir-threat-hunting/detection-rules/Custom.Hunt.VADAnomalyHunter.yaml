@@ -1,0 +1,20 @@
+# NOTE: Reconstructed from the artifact definition screenshot. Replace with your exported YAML.
+# HONEST LABEL: despite the name, this does not read VAD memory. It lists live processes and
+# flags ones running from user-writable staging paths. Real VAD inspection is done offline
+# with Volatility 3 (windows.malfind / windows.vadinfo). Consider renaming, e.g.
+# Custom.Hunt.StagingPathProcesses, before committing.
+name: Custom.Hunt.VADAnomalyHunter
+description: |
+  Enumerate process memory regions, VAD allocations, protection flags, and sizes to detect hollowing or injection.
+type: CLIENT
+parameters:
+  - name: ProcessRegex
+    default: notepad|svchost|cmd
+    description: Process names to focus on.
+sources:
+  - query: |
+      SELECT Pid, Name, CommandLine, Exe, CreateTime
+      FROM pslist()
+      WHERE Name =~ ProcessRegex
+         OR Exe =~ "(?i)(AppData|Temp)"
+         OR CommandLine =~ "(?i)(AppData|Temp)"
